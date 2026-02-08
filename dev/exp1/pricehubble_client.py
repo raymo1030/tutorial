@@ -24,7 +24,7 @@ def authenticate():
         )
 
     resp = requests.post(
-        f"{API_BASE}/auth/login",
+        "https://api.pricehubble.com/auth/login/credentials",
         json={"username": username, "password": password},
         timeout=30,
     )
@@ -99,4 +99,6 @@ def _valuate_batch(properties, valuation_dates, country_code, deal_type, retry=T
 
     resp.raise_for_status()
     data = resp.json()
-    return data.get("valuations", [])
+    # API returns nested list [[val1], [val2], ...]; flatten to [val1, val2, ...]
+    raw = data.get("valuations", [])
+    return [v[0] if isinstance(v, list) and v else v for v in raw]

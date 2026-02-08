@@ -26,10 +26,10 @@ def _build_background(target_values):
     room_opts = np.clip([rooms - 2, rooms - 1, rooms, rooms + 1, rooms + 2], 1, None).astype(int)
     bath_opts = np.clip([baths - 1, baths, baths + 1], 1, None).astype(int)
 
-    # Latin-hypercube-style sampling: pick diverse combos
+    # Small diverse sample set to minimize API calls
     rng = np.random.RandomState(42)
     samples = []
-    for _ in range(15):
+    for _ in range(5):
         samples.append([
             rng.choice(areas),
             rng.choice(years),
@@ -51,9 +51,7 @@ def _make_predict_fn(base_property, country_code, deal_type):
         valuations = phc.valuate(properties, country_code=country_code, deal_type=deal_type)
         prices = []
         for v in valuations:
-            sale_price = v.get("salePrice", {}).get("value") if deal_type == "sale" else None
-            rent_price = v.get("rentGross", {}).get("value") if deal_type == "rent" else None
-            price = sale_price or rent_price
+            price = v.get("salePrice") if deal_type == "sale" else v.get("rentGross")
             prices.append(price if price is not None else 0)
         return np.array(prices, dtype=float)
 
@@ -67,8 +65,8 @@ def _apply_features(base_property, feature_row):
     prop = copy.deepcopy(base_property)
     prop["livingArea"] = float(feature_row[0])
     prop["buildingYear"] = int(feature_row[1])
-    prop["numberOfRooms"] = float(feature_row[2])
-    prop["numberOfBathrooms"] = float(feature_row[3])
+    prop["numberOfRooms"] = int(feature_row[2])
+    prop["numberOfBathrooms"] = int(feature_row[3])
     return prop
 
 
@@ -99,7 +97,7 @@ def explain(base_property, country_code="CH", deal_type="sale"):
     predict_fn = _make_predict_fn(base_property, country_code, deal_type)
 
     explainer = shap.KernelExplainer(predict_fn, background)
-    sv = explainer.shap_values(target, nsamples=64)
+    sv = explainer.shap_values(target, nsamples=16)
 
     shap_vals = sv[0] if sv.ndim > 1 else sv
 
